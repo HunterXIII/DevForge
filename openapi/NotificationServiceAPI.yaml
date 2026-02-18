@@ -1,0 +1,207 @@
+openapi: 3.0.0
+info:
+  title: Notification Service API
+  description: |
+    Микросервис уведомлений.
+
+    Назначение сервиса:
+    - Получает события от других микросервисов через RabbitMQ
+    - Создаёт уведомления для пользователей
+    - Предоставляет HTTP API для получения и управления уведомлениями
+
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+tags:
+  - name: Notifications
+    description: Управление уведомлениями пользователя
+
+paths:
+
+  /notifications/{userId}:
+    get:
+      tags:
+        - Notifications
+      summary: Получить все уведомления пользователя
+      description: Возвращает список всех уведомлений пользователя
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID пользователя
+          schema:
+            type: integer
+            example: 13
+      responses:
+        '200':
+          description: Список уведомлений успешно получен
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/{userId}/unread-count:
+    get:
+      tags:
+        - Notifications
+      summary: Получить количество непрочитанных уведомлений
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID пользователя
+          schema:
+            type: integer
+            example: 13
+      responses:
+        '200':
+          description: Количество непрочитанных уведомлений
+          content:
+            application/json:
+              schema:
+                type: object 
+                properties: 
+                  user_id: 
+                    type: integer 
+                    example: 13 
+                  unread_count: 
+                    type: integer 
+                    example: 5
+
+  /notifications/{notificationId}/read:
+    patch:
+      tags:
+        - Notifications
+      summary: Отметить уведомление как прочитанное
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          description: ID уведомления
+          schema:
+            type: integer
+            example: 42
+      responses:
+        '200':
+          description: Уведомление успешно отмечено как прочитанное
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/{userId}/read-all:
+    patch:
+      tags:
+        - Notifications
+      summary: Отметить все уведомления пользователя как прочитанные
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID пользователя
+          schema:
+            type: integer
+            example: 13
+      responses:
+        '200':
+          description: Все уведомления отмечены как прочитанные
+
+  /notifications/{notificationId}:
+    delete:
+      tags:
+        - Notifications
+      summary: Удалить уведомление
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          description: ID уведомления
+          schema:
+            type: integer
+            example: 42
+      responses:
+        '200':
+          description: Уведомление успешно удалено
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+components:
+
+  schemas:
+
+    Notification:
+      type: object
+      description: Модель уведомления
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор уведомления
+          example: 42
+
+        user_id:
+          type: integer
+          description: ID пользователя
+          example: 13
+
+        title:
+          type: string
+          description: Заголовок уведомления
+          example: Task completed
+
+        content:
+          type: string
+          description: Содержание уведомления
+          example: Задача "Implement JWT" завершена
+
+        is_read:
+          type: boolean
+          description: Прочитано ли уведомление
+          example: false
+
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания уведомления
+          example: "2026-02-18T12:00:00Z"
+
+      required:
+        - id
+        - user_id
+        - content
+        - is_read
+        - created_at
+
+
+  responses:
+      BadRequest:
+        description: Ошибка в запросе
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Некорректные данные"
+                code:
+                  type: integer
+                  example: 400
+      NotFound:
+        description: Ресурс не найден
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: "Товар не найден"
+                code:
+                  type: integer
+                  example: 404
