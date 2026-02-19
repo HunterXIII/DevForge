@@ -1,0 +1,461 @@
+openapi: 3.0.0
+info:
+  title: Project Service API
+  description: |
+    Микросервис для управления проектами и задачами.
+
+    Возможности:
+    - Управление проектами (личные, учебные, pet-projects)
+    - Kanban-доска для задач (To-Do → In Progress → Review → Done)
+    - Привязка задач к навыкам
+    - События для аналитики (task_completed)
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8003
+    description: Локальный сервер разработки
+
+tags:
+  - name: Projects
+    description: Управление проектами
+  - name: Tasks
+    description: Управление задачами в проектах
+
+# security:
+#   - bearerAuth: []
+
+paths:
+  # ====== Проекты ======
+  /projects:
+    get:
+      tags:
+        - Projects
+      summary: Получить список всех проектов
+      description: Возвращает массив всех проектов пользователя.
+      responses:
+        "200":
+          description: Успешный ответ. Список проектов.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+
+    post:
+      tags:
+        - Projects
+      summary: Создать новый проект
+      description: Добавляет новый проект в систему.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: Проект успешно создан.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /projects/{projectId}:
+    get:
+      tags:
+        - Projects
+      summary: Получить проект по ID
+      description: Возвращает детальную информацию о проекте и список его задач.
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          description: Уникальный идентификатор проекта
+          schema:
+            type: integer
+            example: 101
+      responses:
+        "200":
+          description: Проект найден.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags:
+        - Projects
+      summary: Обновить проект
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Проект обновлен.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Projects
+      summary: Удалить проект
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Проект удален.
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ====== Задачи ======
+  /projects/{projectId}/tasks:
+    post:
+      tags:
+        - Tasks
+      summary: Создать задачу в проекте
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCreate"
+      responses:
+        "201":
+          description: Задача создана.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    get:
+      tags:
+        - Tasks
+      summary: Получить задачи проекта
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусу
+          schema:
+            type: string
+            enum: [todo, in_progress, review, done]
+      responses:
+        "200":
+          description: Список задач
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /projects/{projectId}/tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: Получить задачу по ID
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Задача найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags:
+        - Tasks
+      summary: Обновить задачу
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdate"
+      responses:
+        "200":
+          description: Задача обновлена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Tasks
+      summary: Удалить задачу
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Задача удалена
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ====== Проекты ======
+    Project:
+      type: object
+      description: Полная модель проекта
+      properties:
+        id:
+          type: integer
+          example: 101
+        name:
+          type: string
+          example: "DevForge"
+        description:
+          type: string
+          example: "Личный кабинет программиста"
+        status:
+          type: string
+          enum: [active, archived, completed]
+          example: active
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-19T10:00:00Z"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+      required:
+        - id
+        - name
+
+    ProjectCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Новый пет-проект"
+        description:
+          type: string
+          example: "Описание проекта"
+        status:
+          type: string
+          enum: [active, archived, completed]
+          default: active
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Обновленное название"
+        description:
+          type: string
+          example: "Обновленное описание"
+        status:
+          type: string
+          enum: [active, archived, completed]
+
+    # ====== Задачи ======
+    Task:
+      type: object
+      description: Полная модель задачи
+      properties:
+        id:
+          type: integer
+          example: 1
+        project_id:
+          type: integer
+          example: 101
+        name:
+          type: string
+          example: "Написать OpenAPI спецификацию"
+        description:
+          type: string
+          example: "Описать все эндпоинты для project-service"
+        status:
+          type: string
+          enum: [todo, in_progress, review, done]
+          example: in_progress
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          example: high
+        deadline:
+          type: string
+          format: date-time
+          example: "2026-02-25T23:59:00Z"
+        skills:
+          type: array
+          items:
+            type: string
+          example: ["FastAPI", "OpenAPI"]
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-19T11:00:00Z"
+      required:
+        - id
+        - project_id
+        - name
+
+    TaskCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: "Новая задача"
+        description:
+          type: string
+          example: "Описание задачи"
+        status:
+          type: string
+          enum: [todo, in_progress, review, done]
+          default: todo
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
+        deadline:
+          type: string
+          format: date-time
+          example: "2026-02-25T23:59:00Z"
+        skills:
+          type: array
+          items:
+            type: string
+          example: ["Python", "Django"]
+
+    TaskUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Обновленная задача"
+        description:
+          type: string
+          example: "Обновленное описание"
+        status:
+          type: string
+          enum: [todo, in_progress, review, done]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        deadline:
+          type: string
+          format: date-time
+        skills:
+          type: array
+          items:
+            type: string
+
+  responses:
+    BadRequest:
+      description: Ошибка в запросе
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Некорректные данные запроса"
+              code:
+                type: integer
+                example: 400
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Проект или задача не найдены"
+              code:
+                type: integer
+                example: 404
