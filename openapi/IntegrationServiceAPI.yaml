@@ -1,0 +1,293 @@
+openapi: 3.0.3
+info:
+  title: Integration Service API
+  version: 1.0.1
+  description: >
+    Сервис интеграций для сбора внешних данных о пользователях.
+    Поддерживает:
+    - Публичные интеграции (GitHub, Monkeytype, Codewars)
+    - OAuth-интеграции (GitHub приватные репозитории)
+    - Управление подключёнными аккаунтами
+
+servers:
+  - url: https://api.yourapp.com
+  - url: http://localhost:8004
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # ------------------------
+  # GitHub Public
+  # ------------------------
+  /integrations/github/public/{username}:
+    get:
+      summary: Get public GitHub statistics
+      description: Возвращает публичную статистику GitHub без OAuth
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: GitHub username
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Public GitHub stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubPublicStats'
+        '404':
+          description: User not found
+
+  # ------------------------
+  # GitHub OAuth
+  # ------------------------
+  /integrations/github/connect:
+    post:
+      summary: Generate GitHub OAuth URL
+      description: Возвращает URL для редиректа пользователя на GitHub OAuth
+      responses:
+        '200':
+          description: URL для редиректа
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  auth_url:
+                    type: string
+                    example: https://github.com/login/oauth/authorize?client_id=xxx&state=abc
+        '401':
+          description: Unauthorized
+
+  /integrations/github/callback:
+    get:
+      summary: GitHub OAuth callback
+      description: |
+        Обрабатывает redirect от GitHub, обменивает code на access_token.
+        Callback публичный, не требует JWT.
+      security: []  # публичный endpoint
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect обратно в профиль после успешной интеграции
+        '400':
+          description: Invalid state or code
+        '500':
+          description: Internal server error
+
+  /integrations/github/private-stats:
+    get:
+      summary: Get GitHub private + public aggregated stats
+      description: Возвращает полную статистику коммитов, требует OAuth
+      responses:
+        '200':
+          description: GitHub full stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubFullStats'
+              example:
+                total_public_repos: 12
+                total_private_repos: 5
+                total_commits: 1500
+                public_commits: 1200
+                private_commits: 300
+                commits_last_30_days: 50
+        '401':
+          description: Unauthorized
+        '403':
+          description: OAuth token not found
+
+  # ------------------------
+  # Monkeytype
+  # ------------------------
+  /integrations/monkeytype/{username}:
+    get:
+      summary: Get Monkeytype public stats
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Monkeytype username
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Monkeytype stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonkeytypeStats'
+              example:
+                best_wpm: 120.5
+                average_wpm: 90.2
+                accuracy: 98.3
+                longest_streak: 14
+        '404':
+          description: User not found
+
+  # ------------------------
+  # Codewars
+  # ------------------------
+  /integrations/codewars/{username}:
+    get:
+      summary: Get Codewars public stats
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Codewars username
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Codewars stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodewarsStats'
+              example:
+                rank: 5 kyu
+                honor: 1234
+                total_completed_kata: 250
+                languages: ["Python", "JavaScript"]
+        '404':
+          description: User not found
+
+  # ------------------------
+  # External account management
+  # ------------------------
+  /integrations:
+    get:
+      summary: List connected external accounts
+      description: Возвращает список подключённых внешних сервисов
+      responses:
+        '200':
+          description: Connected providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExternalAccount'
+
+  /integrations/{provider}:
+    delete:
+      summary: Disconnect external provider
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          description: Provider to disconnect
+          schema:
+            type: string
+            enum: [github, monkeytype, codewars]
+      responses:
+        '204':
+          description: Provider disconnected successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Provider not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    GitHubPublicStats:
+      type: object
+      properties:
+        total_public_repos:
+          type: integer
+        total_stars:
+          type: integer
+        languages:
+          type: array
+          items:
+            type: string
+        recent_activity_count:
+          type: integer
+      example:
+        total_public_repos: 10
+        total_stars: 55
+        languages: ["Python", "JavaScript"]
+        recent_activity_count: 20
+
+    GitHubFullStats:
+      type: object
+      properties:
+        total_public_repos:
+          type: integer
+        total_private_repos:
+          type: integer
+        total_commits:
+          type: integer
+        public_commits:
+          type: integer
+        private_commits:
+          type: integer
+        commits_last_30_days:
+          type: integer
+
+    MonkeytypeStats:
+      type: object
+      properties:
+        best_wpm:
+          type: number
+          format: float
+        average_wpm:
+          type: number
+          format: float
+        accuracy:
+          type: number
+          format: float
+        longest_streak:
+          type: integer
+
+    CodewarsStats:
+      type: object
+      properties:
+        rank:
+          type: string
+        honor:
+          type: integer
+        total_completed_kata:
+          type: integer
+        languages:
+          type: array
+          items:
+            type: string
+
+    ExternalAccount:
+      type: object
+      properties:
+        provider:
+          type: string
+        connected_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [connected, revoked]
+      example:
+        provider: github
+        connected_at: "2026-02-17T15:00:00Z"
+        status: connected
