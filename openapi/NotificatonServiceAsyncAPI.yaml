@@ -1,7 +1,7 @@
 asyncapi: 2.6.0
 info:
   title: Dev Platform Event Bus
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Централизованная событийная шина (RabbitMQ) для взаимодействия
     Auth, Profile, Integration, Project и Notification сервисов.
@@ -103,6 +103,10 @@ channels:
       message:
         $ref: '#/components/messages/ProjectDeleted'
 
+  # =========================
+  # TASK EVENTS
+  # =========================
+
   task.created:
     publish:
       summary: Task created
@@ -124,71 +128,111 @@ channels:
       message:
         $ref: '#/components/messages/TaskCompleted'
 
+  task.deleted:
+    publish:
+      summary: Task deleted
+      operationId: taskDeleted
+      message:
+        $ref: '#/components/messages/TaskDeleted'
+
 
 components:
 
   messages:
 
     # ===== USER =====
+
     UserRegistered:
       name: UserRegistered
+      title: User Registered Event
       payload:
         $ref: '#/components/schemas/UserEvent'
 
     UserDeleted:
       name: UserDeleted
+      title: User Deleted Event
       payload:
         $ref: '#/components/schemas/UserEvent'
 
+
     # ===== PROFILE =====
+
     ProfileCreated:
+      name: ProfileCreated
       payload:
         $ref: '#/components/schemas/ProfileEvent'
 
     ProfileUpdated:
+      name: ProfileUpdated
       payload:
         $ref: '#/components/schemas/ProfileEvent'
 
     ProfileDeleted:
+      name: ProfileDeleted
       payload:
         $ref: '#/components/schemas/ProfileEvent'
 
+
     # ===== INTEGRATION =====
+
     IntegrationConnected:
+      name: IntegrationConnected
       payload:
         $ref: '#/components/schemas/IntegrationEvent'
 
     IntegrationDisconnected:
+      name: IntegrationDisconnected
       payload:
         $ref: '#/components/schemas/IntegrationEvent'
 
     IntegrationStatsUpdated:
+      name: IntegrationStatsUpdated
       payload:
         $ref: '#/components/schemas/IntegrationStatsEvent'
 
+
     # ===== PROJECT =====
+
     ProjectCreated:
+      name: ProjectCreated
       payload:
         $ref: '#/components/schemas/ProjectEvent'
 
     ProjectDeleted:
+      name: ProjectDeleted
       payload:
         $ref: '#/components/schemas/ProjectEvent'
 
+
+    # ===== TASK =====
+
     TaskCreated:
+      name: TaskCreated
       payload:
         $ref: '#/components/schemas/TaskEvent'
 
     TaskUpdated:
+      name: TaskUpdated
       payload:
         $ref: '#/components/schemas/TaskEvent'
 
     TaskCompleted:
+      name: TaskCompleted
       payload:
         $ref: '#/components/schemas/TaskEvent'
 
+    TaskDeleted:
+      name: TaskDeleted
+      title: Task Deleted Event
+      payload:
+        $ref: '#/components/schemas/TaskDeletedEvent'
+
 
   schemas:
+
+    # =========================
+    # BASE EVENT
+    # =========================
 
     BaseEvent:
       type: object
@@ -200,70 +244,152 @@ components:
         event_id:
           type: string
           format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
         timestamp:
           type: string
           format: date-time
+          example: "2026-02-20T12:00:00Z"
+
         user_id:
           type: integer
+          example: 13
+
+
+    # =========================
+    # USER
+    # =========================
 
     UserEvent:
       allOf:
         - $ref: '#/components/schemas/BaseEvent'
         - type: object
+          required:
+            - email
           properties:
             email:
               type: string
               format: email
+              example: user@example.com
+
+
+    # =========================
+    # PROFILE
+    # =========================
 
     ProfileEvent:
       allOf:
         - $ref: '#/components/schemas/BaseEvent'
         - type: object
+          required:
+            - profile_id
           properties:
             profile_id:
               type: integer
+              example: 55
+
             username:
               type: string
+              example: hunter_dev
+
+
+    # =========================
+    # INTEGRATION
+    # =========================
 
     IntegrationEvent:
       allOf:
         - $ref: '#/components/schemas/BaseEvent'
         - type: object
+          required:
+            - provider
           properties:
             provider:
               type: string
               enum: [github, monkeytype, codewars]
+              example: github
+
 
     IntegrationStatsEvent:
       allOf:
         - $ref: '#/components/schemas/BaseEvent'
         - type: object
+          required:
+            - provider
+            - stats
           properties:
             provider:
               type: string
+              example: github
+
             stats:
               type: object
               additionalProperties: true
+
+
+    # =========================
+    # PROJECT
+    # =========================
 
     ProjectEvent:
       allOf:
         - $ref: '#/components/schemas/BaseEvent'
         - type: object
+          required:
+            - project_id
           properties:
             project_id:
               type: integer
+              example: 100
+
             name:
               type: string
+              example: DevForge
+
+
+    # =========================
+    # TASK
+    # =========================
 
     TaskEvent:
       allOf:
         - $ref: '#/components/schemas/BaseEvent'
         - type: object
+          required:
+            - project_id
+            - task_id
+            - status
           properties:
             project_id:
               type: integer
+              example: 100
+
             task_id:
               type: integer
+              example: 501
+
             status:
               type: string
               enum: [todo, in_progress, review, done]
+              example: in_progress
+
+
+    TaskDeletedEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required:
+            - project_id
+            - task_id
+          properties:
+            project_id:
+              type: integer
+              example: 100
+
+            task_id:
+              type: integer
+              example: 501
+
+            reason:
+              type: string
+              example: "User deleted task"
