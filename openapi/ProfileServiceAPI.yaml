@@ -88,6 +88,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+    delete:
+      summary: Удалить свой профиль
+      description: Удаление профиля текущего авторизованного пользователя
+      responses:
+        '204':
+          description: Профиль успешно удалён
+        '401':
+          description: Не авторизован
+        '404':
+          description: Профиль не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /profile/by-username/{username}:
     get:
       summary: Публичный профиль по username
