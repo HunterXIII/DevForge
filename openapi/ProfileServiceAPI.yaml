@@ -103,6 +103,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+
   /profile/by-username/{username}:
     get:
       summary: Публичный профиль по username
