@@ -1,0 +1,271 @@
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  description: |
+    Сервис авторизации и аутентификации.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Локальный сервер для разработки
+
+# Основные эндпоинты
+paths:
+  # 1. GET - получить список всех товаров
+  /users:
+    get:
+      summary: Список пользователей
+      description: Возвращает массив всех пользователей
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  # 2. POST - создать новый товар
+    post:
+      summary: Создать пользователя
+      description: Создание нового пользователя в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Пользователь успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # 3. GET /items/{id} - получить один товар по ID
+  /users/{userId}:
+    get:
+      summary: Получить пользователя по ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID пользователя
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Пользователь найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # 4. DELETE /users/{userId} - удалить пользователя
+    delete:
+      summary: Удалить пользователя
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: ID пользователя для удаления
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Пользователь удалён
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # 5. POST /auth/login - вход в систему
+  /auth/login:
+    post:
+      summary: Вход пользователя в систему
+      description: Аутентификация пользователя по email и паролю
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # 6. POST /auth/refresh - обновление токена
+  /auth/refresh:
+    post:
+      summary: Обновление токена доступа
+      description: Обновляет access token по refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Токен успешно обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # 7. POST /auth/logout - выход из системы
+  /auth/logout:
+    post:
+      summary: Выход пользователя из системы
+      description: Инвалидация текущего refresh токена пользователя
+      responses:
+        '204':
+          description: Успешный выход, содержимого нет
+
+components:
+  # Модели данных
+  schemas:
+    User:
+      type: object
+      description: Полная модель пользователя(включая ID)
+      properties:
+        id:
+          type: integer
+          description: Уникальный идентификатор
+          example: 42
+        name:
+          type: string
+          description: Имя пользователя
+          example: "artem"
+        is_active:
+          type: boolean
+          description: существует пользователь
+          default: true
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+          example: "artem@example.com"
+
+      required:
+        - id
+        - name
+        - email
+
+    LoginRequest:
+      type: object
+      description: Данные для входа пользователя
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+          example: "artem@example.com"
+        password:
+          type: string
+          format: password
+          description: Пароль пользователя
+          example: "S3cureP@ssw0rd"
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      description: Ответ при успешном входе
+      properties:
+        access_token:
+          type: string
+          description: JWT токен доступа
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          description: Тип токена
+          example: "bearer"
+        refresh_token:
+          type: string
+          description: Refresh токен для обновления access токена
+          example: "1d82f3e0-8f0e-4b7f-9b1b-1234567890ab"
+
+    RefreshRequest:
+      type: object
+      description: Запрос на обновление токена
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh токен пользователя
+          example: "1d82f3e0-8f0e-4b7f-9b1b-1234567890ab"
+      required:
+        - refresh_token
+
+    UserCreate:
+      type: object
+      description: Данные для создания пользователя (без ID)
+      properties:
+        name:
+          type: string
+          description: Имя пользователя
+          example: "artem"
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+          example: "artem@example.com"
+        password:
+          type: string
+          format: password
+          description: Пароль пользователя
+          example: "S3cureP@ssw0rd"
+        is_active:
+          type: boolean
+          description: Активен ли пользователь
+          default: true
+      required:
+        - name
+        - email
+        - password
+  # Переиспользуемые ответы с ошибками
+  responses:
+    BadRequest:
+      description: Ошибка в запросе
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Некорректные данные"
+              code:
+                type: integer
+                example: 400
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Ресурс не найден"
+              code:
+                type: integer
+                example: 404
