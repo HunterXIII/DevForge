@@ -1,0 +1,269 @@
+asyncapi: 2.6.0
+info:
+  title: Dev Platform Event Bus
+  version: 1.0.0
+  description: >
+    Централизованная событийная шина (RabbitMQ) для взаимодействия
+    Auth, Profile, Integration, Project и Notification сервисов.
+
+servers:
+  rabbitmq:
+    url: localhost:5672
+    protocol: amqp
+    protocolVersion: 0.9.1
+    description: Local RabbitMQ broker
+
+defaultContentType: application/json
+
+channels:
+
+  # =========================
+  # USER EVENTS (Auth Service)
+  # =========================
+
+  user.registered:
+    publish:
+      summary: User created in Auth Service
+      operationId: userRegistered
+      message:
+        $ref: '#/components/messages/UserRegistered'
+
+  user.deleted:
+    publish:
+      summary: User deleted
+      operationId: userDeleted
+      message:
+        $ref: '#/components/messages/UserDeleted'
+
+  # =========================
+  # PROFILE EVENTS
+  # =========================
+
+  profile.created:
+    publish:
+      summary: Profile created
+      operationId: profileCreated
+      message:
+        $ref: '#/components/messages/ProfileCreated'
+
+  profile.updated:
+    publish:
+      summary: Profile updated
+      operationId: profileUpdated
+      message:
+        $ref: '#/components/messages/ProfileUpdated'
+
+  profile.deleted:
+    publish:
+      summary: Profile deleted
+      operationId: profileDeleted
+      message:
+        $ref: '#/components/messages/ProfileDeleted'
+
+  # =========================
+  # INTEGRATION EVENTS
+  # =========================
+
+  integration.connected:
+    publish:
+      summary: External provider connected
+      operationId: integrationConnected
+      message:
+        $ref: '#/components/messages/IntegrationConnected'
+
+  integration.disconnected:
+    publish:
+      summary: External provider disconnected
+      operationId: integrationDisconnected
+      message:
+        $ref: '#/components/messages/IntegrationDisconnected'
+
+  integration.stats.updated:
+    publish:
+      summary: External stats updated
+      operationId: integrationStatsUpdated
+      message:
+        $ref: '#/components/messages/IntegrationStatsUpdated'
+
+  # =========================
+  # PROJECT EVENTS
+  # =========================
+
+  project.created:
+    publish:
+      summary: Project created
+      operationId: projectCreated
+      message:
+        $ref: '#/components/messages/ProjectCreated'
+
+  project.deleted:
+    publish:
+      summary: Project deleted
+      operationId: projectDeleted
+      message:
+        $ref: '#/components/messages/ProjectDeleted'
+
+  task.created:
+    publish:
+      summary: Task created
+      operationId: taskCreated
+      message:
+        $ref: '#/components/messages/TaskCreated'
+
+  task.updated:
+    publish:
+      summary: Task updated
+      operationId: taskUpdated
+      message:
+        $ref: '#/components/messages/TaskUpdated'
+
+  task.completed:
+    publish:
+      summary: Task moved to DONE
+      operationId: taskCompleted
+      message:
+        $ref: '#/components/messages/TaskCompleted'
+
+
+components:
+
+  messages:
+
+    # ===== USER =====
+    UserRegistered:
+      name: UserRegistered
+      payload:
+        $ref: '#/components/schemas/UserEvent'
+
+    UserDeleted:
+      name: UserDeleted
+      payload:
+        $ref: '#/components/schemas/UserEvent'
+
+    # ===== PROFILE =====
+    ProfileCreated:
+      payload:
+        $ref: '#/components/schemas/ProfileEvent'
+
+    ProfileUpdated:
+      payload:
+        $ref: '#/components/schemas/ProfileEvent'
+
+    ProfileDeleted:
+      payload:
+        $ref: '#/components/schemas/ProfileEvent'
+
+    # ===== INTEGRATION =====
+    IntegrationConnected:
+      payload:
+        $ref: '#/components/schemas/IntegrationEvent'
+
+    IntegrationDisconnected:
+      payload:
+        $ref: '#/components/schemas/IntegrationEvent'
+
+    IntegrationStatsUpdated:
+      payload:
+        $ref: '#/components/schemas/IntegrationStatsEvent'
+
+    # ===== PROJECT =====
+    ProjectCreated:
+      payload:
+        $ref: '#/components/schemas/ProjectEvent'
+
+    ProjectDeleted:
+      payload:
+        $ref: '#/components/schemas/ProjectEvent'
+
+    TaskCreated:
+      payload:
+        $ref: '#/components/schemas/TaskEvent'
+
+    TaskUpdated:
+      payload:
+        $ref: '#/components/schemas/TaskEvent'
+
+    TaskCompleted:
+      payload:
+        $ref: '#/components/schemas/TaskEvent'
+
+
+  schemas:
+
+    BaseEvent:
+      type: object
+      required:
+        - event_id
+        - timestamp
+        - user_id
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        user_id:
+          type: integer
+
+    UserEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          properties:
+            email:
+              type: string
+              format: email
+
+    ProfileEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          properties:
+            profile_id:
+              type: integer
+            username:
+              type: string
+
+    IntegrationEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          properties:
+            provider:
+              type: string
+              enum: [github, monkeytype, codewars]
+
+    IntegrationStatsEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          properties:
+            provider:
+              type: string
+            stats:
+              type: object
+              additionalProperties: true
+
+    ProjectEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          properties:
+            project_id:
+              type: integer
+            name:
+              type: string
+
+    TaskEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          properties:
+            project_id:
+              type: integer
+            task_id:
+              type: integer
+            status:
+              type: string
+              enum: [todo, in_progress, review, done]
