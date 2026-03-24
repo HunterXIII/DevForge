@@ -1,0 +1,3 @@
+[submodule "services/notification_service"]
+	path = services/notification_service
+	url = git@github.com:HunterXIII/NotificationService.git
