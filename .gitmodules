@@ -10,3 +10,6 @@
 [submodule "services/project_service"]
 	path = services/project_service
 	url = https://github.com/mariamaksikova/ProjectService
+[submodule "services/auth_service"]
+	path = services/auth_service
+	url = https://github.com/aartemmmm/auth_service.git
