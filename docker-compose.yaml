@@ -1,0 +1,257 @@
+# DevForge: все микросервисы, по одному Postgres на сервис, общая сеть.
+# С хоста: auth :8000, profile :8001, project :8002, integrations :8004, notifications :8005.
+# Для редиректа на страницу логина у profile задан AUTH_SERVICE_URL=http://localhost:8000 (браузер).
+
+name: devforge
+
+services:
+  auth-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: devforge
+      POSTGRES_PASSWORD: devforge
+      POSTGRES_DB: auth_db
+    volumes:
+      - auth_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devforge -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [devforge]
+
+  profile-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: devforge
+      POSTGRES_PASSWORD: devforge
+      POSTGRES_DB: profile_db
+    volumes:
+      - profile_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devforge -d profile_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [devforge]
+
+  project-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: devforge
+      POSTGRES_PASSWORD: devforge
+      POSTGRES_DB: project_db
+    volumes:
+      - project_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devforge -d project_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [devforge]
+
+  integration-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: devforge
+      POSTGRES_PASSWORD: devforge
+      POSTGRES_DB: integration_db
+    volumes:
+      - integration_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devforge -d integration_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [devforge]
+
+  notification-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: devforge
+      POSTGRES_PASSWORD: devforge
+      POSTGRES_DB: notification_db
+    volumes:
+      - notification_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devforge -d notification_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [devforge]
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: devforge
+      RABBITMQ_DEFAULT_PASS: devforge
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [devforge]
+
+  auth-service:
+    build: ./services/auth_service
+    working_dir: /app
+    volumes:
+      - ./services/auth_service:/app
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      DB_HOST: auth-db
+      DB_PORT: "5432"
+      DB_USER: devforge
+      DB_PASSWORD: devforge
+      DB_NAME: auth_db
+      JWT_SECRET: ${JWT_SECRET:-devforge-jwt-secret-change-in-production}
+    ports:
+      - "8000:8000"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks: [devforge]
+
+  profile-service:
+    build: ./services/profile_service
+    working_dir: /app
+    volumes:
+      - ./services/profile_service:/app
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      DB_HOST: profile-db
+      DB_PORT: "5432"
+      DB_USER: devforge
+      DB_PASSWORD: devforge
+      DB_NAME: profile_db
+      JWT_SECRET: ${JWT_SECRET:-devforge-jwt-secret-change-in-production}
+      JWT_ALGORITHM: HS256
+      INTEGRATIONS_BASE_URL: http://integrations:8000
+      AUTH_SERVICE_URL: http://localhost:8000
+    ports:
+      - "8001:8000"
+    depends_on:
+      profile-db:
+        condition: service_healthy
+      integrations:
+        condition: service_started
+    networks: [devforge]
+
+  project-service:
+    build: ./services/project_service
+    working_dir: /app
+    volumes:
+      - ./services/project_service:/app
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      DB_HOST: project-db
+      DB_PORT: "5432"
+      DB_USER: devforge
+      DB_PASSWORD: devforge
+      DB_NAME: project_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: devforge
+      RABBITMQ_PASSWORD: devforge
+      JWT_SECRET: ${JWT_SECRET:-devforge-jwt-secret-change-in-production}
+      JWT_ALGORITHM: HS256
+    ports:
+      - "8002:8000"
+    depends_on:
+      project-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [devforge]
+
+  integrations:
+    build: ./services/integration_service
+    working_dir: /app
+    volumes:
+      - ./services/integration_service:/app
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      POSTGRES_USER: devforge
+      POSTGRES_PASSWORD: devforge
+      POSTGRES_DB: integration_db
+      DB_HOST: integration-db
+      POSTGRES_PORT: "5432"
+      DATABASE_URL: postgresql://devforge:devforge@integration-db:5432/integration_db
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_REDIRECT_URI: http://localhost:8004/integrations/github/callback
+      INTEGRATION_FRONTEND_URL: http://localhost:3000/profile/integrations
+    ports:
+      - "8004:8000"
+    depends_on:
+      integration-db:
+        condition: service_healthy
+    networks: [devforge]
+
+  notification-service:
+    build: ./services/notification_service
+    working_dir: /app
+    volumes:
+      - ./services/notification_service:/app
+    command: >
+      sh -c "alembic upgrade head &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DB_HOST: notification-db
+      POSTGRES_USER: devforge
+      POSTGRES_PASSWORD: devforge
+      POSTGRES_DB: notification_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: devforge
+      RABBITMQ_PASSWORD: devforge
+      GOOGLE_KEY: ${GOOGLE_KEY:-}
+    ports:
+      - "8005:8000"
+    depends_on:
+      notification-db:
+        condition: service_healthy
+    networks: [devforge]
+
+  notification-worker:
+    build: ./services/notification_service
+    working_dir: /app
+    volumes:
+      - ./services/notification_service:/app
+    command: >
+      sh -c "alembic upgrade head && python worker.py"
+    environment:
+      DB_HOST: notification-db
+      POSTGRES_USER: devforge
+      POSTGRES_PASSWORD: devforge
+      POSTGRES_DB: notification_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: devforge
+      RABBITMQ_PASSWORD: devforge
+      GOOGLE_KEY: ${GOOGLE_KEY:-}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      notification-db:
+        condition: service_healthy
+    networks: [devforge]
+
+networks:
+  devforge:
+    name: devforge
+
+volumes:
+  auth_pg_data:
+  profile_pg_data:
+  project_pg_data:
+  integration_pg_data:
+  notification_pg_data:
